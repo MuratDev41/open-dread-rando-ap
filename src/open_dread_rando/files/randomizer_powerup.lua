@@ -51,7 +51,7 @@ function RandomizerPowerup.IncrementInventoryIndex()
     Blackboard.SetProp(playerSection, propName, "f", currentIndex)
 end
 
-function RandomizerPowerup.OnPickedUp(actor, resources)
+function RandomizerPowerup.OnPickedUp(actor, resources, is_remote)
     RandomizerPowerup.Self = actor
     local name = "Boss"
     if actor ~= nil then
@@ -60,6 +60,13 @@ function RandomizerPowerup.OnPickedUp(actor, resources)
     end
 
     Game.LogWarn(0, "Collected pickup: " .. name)
+
+    -- ARCHIPELAGO HOOK: If this is a remote item, notify the client and DON'T grant resources locally
+    if is_remote then
+        RL.SendLog("LOCATION_CHECKED:" .. string.format("%s_%s", Scenario.CurrentScenarioID, name))
+        return {}
+    end
+
     local granted = RandomizerPowerup.HandlePickupResources(resources)
 
     -- RandomizerPowerup.ChangeSuit()
@@ -567,4 +574,25 @@ RandomizerIceMissile = {}
 setmetatable(RandomizerIceMissile, {__index = RandomizerPowerup})
 function RandomizerIceMissile.OnPickedUp(actor, progression)
     return pick_up_missile("ice", "ITEM_WEAPON_ICE_MISSILE", actor, progression)
+end
+
+function RandomizerPowerup.ReceiveItemFromAP(item_id, quantity)
+    Game.LogWarn(0, "Archipelago: Receiving item " .. item_id)
+    
+    local resource = { item_id = item_id, quantity = quantity or 1 }
+    local granted = { resource }
+    
+    RandomizerPowerup.IncreaseItemAmount(resource.item_id, resource.quantity)
+    
+    RandomizerPowerup.IncreaseEnergy(resource)
+    RandomizerPowerup.IncreaseAmmo(resource)
+    RandomizerPowerup.CheckArtifacts(resource)
+
+    RandomizerPowerup.ApplyTunableChanges()
+    RandomizerPowerup.UpdateWeapons()
+    Scenario.UpdateProgressiveItemModels()
+    Scenario.UpdateBlastShields()
+    
+    -- Notify the user
+    Scenario.QueueAsyncPopup("Received " .. item_id .. " from Archipelago!", 3.0)
 end

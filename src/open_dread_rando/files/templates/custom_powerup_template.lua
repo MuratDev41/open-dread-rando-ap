@@ -7,5 +7,6 @@ end
 function T__name__T.OnPickedUp(actor)
     Game.LogWarn(0, 'picked up TEMPLATE("name")')
     local resources = TEMPLATE("resources")
-    TEMPLATE("parent").OnPickedUp(actor, resources)
+    local is_remote = TEMPLATE("is_remote")
+    TEMPLATE("parent").OnPickedUp(actor, resources, is_remote)
 end

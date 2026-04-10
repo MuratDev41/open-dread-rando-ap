@@ -57,8 +57,9 @@ class LuaEditor:
         first_resource = pickup_resources[0][0]
         first_resource_id = first_resource["item_id"]
         first_resource_quantity = first_resource["quantity"]
+        is_remote = pickup.get("multiworld", False)
 
-        if not boss and len(pickup_resources) == 1 and len(pickup_resources[0]) == 1:
+        if not boss and len(pickup_resources) == 1 and len(pickup_resources[0]) == 1 and not is_remote:
             if "ITEM_RANDO_ARTIFACT_" in first_resource_id:
                 if first_resource_id in self._custom_classes.keys():
                     return self._custom_classes[first_resource_id]
@@ -77,6 +78,7 @@ class LuaEditor:
                             ]
                         ],
                         "parent": "RandomizerPowerup",
+                        "is_remote": False,
                     }
                 )
 
@@ -91,7 +93,10 @@ class LuaEditor:
 
         hashable_progression = "_".join(
             [f"{res[0]['item_id']}_{res[0]['quantity']}" for res in pickup_resources]
-        ).replace("-", "MINUS")
+        )
+        if is_remote:
+            hashable_progression += "_REMOTE"
+        hashable_progression = hashable_progression.replace("-", "MINUS")
 
         if hashable_progression in self._custom_classes.keys():
             return self._custom_classes[hashable_progression]
@@ -112,6 +117,7 @@ class LuaEditor:
             "name": class_name,
             "resources": resources,
             "parent": self.get_parent_for(first_resource_id, first_resource_quantity),
+            "is_remote": is_remote,
         }
         self.add_custom_class(replacement)
 
