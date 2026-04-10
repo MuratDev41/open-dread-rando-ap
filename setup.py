@@ -8,14 +8,17 @@ from setuptools.command.build_py import build_py
 
 
 def generate_exefs_patches():
-    subprocess.run(
-        [
-            sys.executable,
-            os.fspath(Path(__file__).parent.joinpath("tools", "create_exefs_patches.py")),
-            "dread",
-        ],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                os.fspath(Path(__file__).parent.joinpath("tools", "create_exefs_patches.py")),
+                "dread",
+            ],
+            check=True,
+        )
+    except Exception as e:
+        print(f"Warning: Failed to generate exefs patches: {e}")
 
 
 class BuildPyCommand(build_py):
