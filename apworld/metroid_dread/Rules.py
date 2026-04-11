@@ -8,7 +8,7 @@ def set_rules(world, player):
     
     # --- Location Logic ---
     # We use a set of lambda functions to check for item possession
-    state = multiworld.get_reachable_state(player)
+    
 
     # Artaria Logic
     set_rule(multiworld.get_location("Artaria - ItemSphere_ChargeBeam", player), 

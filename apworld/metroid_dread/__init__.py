@@ -26,13 +26,23 @@ class MetroidDreadWorld(World):
     options_dataclass = MetroidDreadOptions
 
     def create_items(self):
+        item_pool = []
         for name, data in item_table.items():
             if data.quantity > 0:
                 for _ in range(data.quantity):
-                    self.multiworld.itempool.append(self.create_item(name))
+                    item_pool.append(self.create_item(name))
             elif name in item_frequencies:
                 for _ in range(item_frequencies[name]):
-                    self.multiworld.itempool.append(self.create_item(name))
+                    item_pool.append(self.create_item(name))
+
+        # Pad with filler to match location count
+        total_locations = len(self.multiworld.get_unfilled_locations(self.player))
+        deficit = total_locations - len(item_pool)
+        if deficit > 0:
+            for _ in range(deficit):
+                item_pool.append(self.create_item("Missile Tank"))
+        
+        self.multiworld.itempool += item_pool
 
     def create_regions(self):
         create_regions(self.multiworld, self.player)
@@ -166,17 +176,18 @@ class MetroidDreadWorld(World):
 
     def create_item(self, name: str):
         data = item_table[name]
-        return Item(name, data.progression, data.code, self.player)
+        classification = ItemClassification.progression if data.progression else ItemClassification.filler
+        return MetroidDreadItem(name, classification, data.code, self.player)
 
 
 from .Items import ItemData
-from BaseClasses import Item
+from BaseClasses import Item, ItemClassification
 
 
 class MetroidDreadItem(Item):
     game: str = "Metroid Dread"
 
-from worlds.LauncherComponents import components, Component, launch as launch_component
+from worlds.LauncherComponents import components, Component, Type, launch as launch_component
 
 def launch_client(*args):
     import sys
