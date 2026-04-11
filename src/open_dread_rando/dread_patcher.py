@@ -4,7 +4,11 @@ import shutil
 import typing
 from pathlib import Path
 
-import open_dread_rando_exlaunch
+try:
+    import open_dread_rando_exlaunch
+except ImportError:
+    open_dread_rando_exlaunch = None
+
 from construct import ListContainer
 from mercury_engine_data_structures.file_tree_editor import OutputFormat
 
@@ -318,7 +322,11 @@ def patch_extracted(input_path: Path, output_path: Path, configuration: dict):
     patch_exefs(exefs_patches, configuration)
 
     if output_format == OutputFormat.ROMFS:
-        open_dread_rando_exlaunch.include_depackager(out_exefs)
+        if open_dread_rando_exlaunch:
+            open_dread_rando_exlaunch.include_depackager(out_exefs)
+        else:
+            LOG.error("open_dread_rando_exlaunch is not installed. The depackager will not be included.")
+            LOG.error("Please install it with: pip install open-dread-rando-exlaunch")
 
     LOG.info("Saving modified lua scripts")
     lua_editor.save_modifications(editor)
