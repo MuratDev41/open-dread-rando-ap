@@ -13,6 +13,5 @@ import os
 # This function returns a list containing only the path to this
 # directory, which is the location of these hooks.
 
-
 def get_hook_dirs():
     return [os.path.dirname(__file__)]

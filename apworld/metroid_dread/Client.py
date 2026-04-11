@@ -10,6 +10,37 @@ except ImportError:
         gui_loop = None
 from .Data import ITEM_MAPPING, LOCATION_MAPPING
 
+# Inject an extreme debug hook into Python's asyncio to catch silently swallowed fatal crashes
+import asyncio
+import traceback
+import os
+
+try:
+    if not hasattr(asyncio, "_is_md_patched"):
+        orig_create_task = asyncio.create_task
+
+        def _debug_create_task(coro, *args, **kwargs):
+            task = orig_create_task(coro, *args, **kwargs)
+            def _done_callback(t):
+                try:
+                    err = t.exception()
+                    if err:
+                        with open("metroid_dread_debug.log", "a") as f:
+                            f.write(f"Task crashed containing: {str(coro)}\n")
+                            f.write("".join(traceback.format_exception(type(err), err, err.__traceback__)))
+                            f.write("-" * 50 + "\n")
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    pass
+            task.add_done_callback(_done_callback)
+            return task
+        
+        asyncio.create_task = _debug_create_task
+        asyncio._is_md_patched = True
+except Exception:
+    pass
+
 class MetroidDreadContext(CommonContext):
     command_processor = ClientCommandProcessor
     game = "Metroid Dread"
@@ -32,7 +63,9 @@ class MetroidDreadContext(CommonContext):
         if cmd == "Connected":
             self.game_host = args.get("game_host", "127.0.0.1")
             self.game_port = args.get("game_port", 43000)
-            asyncio.create_task(self.game_watcher())
+            if hasattr(self, "game_watcher_task") and self.game_watcher_task:
+                self.game_watcher_task.cancel()
+            self.game_watcher_task = asyncio.create_task(self.game_watcher())
         elif cmd == "ReceivedItems":
             for item in args["items"]:
                 self.queue_item_grant(item.item)
@@ -66,9 +99,15 @@ class MetroidDreadContext(CommonContext):
                     else:
                         logger.warning(f"Unknown location checked in game: {location_key}")
 
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Game socket error: {e}")
                 self.game_socket = None
+        
+        if self.game_socket:
+            self.game_socket.close()
+            self.game_socket = None
 
     def queue_item_grant(self, ap_item_id):
         item_id = ITEM_MAPPING.get(str(ap_item_id))
@@ -135,12 +174,41 @@ async def main(args):
     
     try:
         await asyncio.wait(loop_tasks, return_when=asyncio.FIRST_COMPLETED)
+    except (asyncio.CancelledError, Exception):
+        pass
     finally:
         ctx.exit_event.set()
-        for task in loop_tasks:
+
+        if ctx.gui_enabled:
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                if app:
+                    app.stop()
+                    await asyncio.sleep(0.1) # Let Kivy shutdown gracefully before we cancel its task
+            except Exception:
+                pass
+        
+        # Suppress Uncaught Exception noise logged by Archipelago Exception handlers during task cancellation
+        import logging
+        logging.disable(logging.CRITICAL)
+
+        # Collect any extra tasks created during runtime
+        extra_tasks = [t for t in asyncio.all_tasks() if t not in loop_tasks and t is not asyncio.current_task()]
+        
+        for task in loop_tasks + extra_tasks:
             if not task.done():
                 task.cancel()
-        await asyncio.gather(*loop_tasks, return_exceptions=True)
+        
+        results = await asyncio.gather(*(loop_tasks + extra_tasks), return_exceptions=True)
+        
+        logging.disable(logging.NOTSET)
+        
+        # Expose ANY fatal exceptions that were swallowed during application execution
+        for task, result in zip(loop_tasks + extra_tasks, results):
+            if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+                name = task.get_name() if hasattr(task, 'get_name') else str(task)
+                logging.error(f"Fatal error in task {name}:", exc_info=result)
 
 def launch(args=None):
     if args is None:

@@ -1030,6 +1030,7 @@
             "type": "string",
             "enum": [
                 "ITEM_NONE",
+                "ITEM_WEAPON_POWER_BEAM",
                 "ITEM_WEAPON_WIDE_BEAM",
                 "ITEM_WEAPON_PLASMA_BEAM",
                 "ITEM_WEAPON_WAVE_BEAM",
@@ -1037,6 +1038,7 @@
                 "ITEM_WEAPON_CHARGE_BEAM",
                 "ITEM_WEAPON_DIFFUSION_BEAM",
                 "ITEM_WEAPON_GRAPPLE_BEAM",
+                "ITEM_WEAPON_MISSILE_LAUNCHER",
                 "ITEM_WEAPON_SUPER_MISSILE",
                 "ITEM_WEAPON_ICE_MISSILE",
                 "ITEM_MULTILOCKON",

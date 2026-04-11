@@ -13,7 +13,7 @@ def build():
     os.chdir(root)
     
     # Source entry point
-    entry_point = root / "src" / "open_dread_rando" / "gui.py"
+    entry_point = root / "run_patcher.py"
     
     # Data files to include
     # Format: "source_path:dest_path" (on Windows) or "source_path;dest_path" (on POSIX)
@@ -31,7 +31,11 @@ def build():
     cmd = [
         python_exe, "-m", "PyInstaller",
         "--onefile",
-        "--windowed", # No console on startup
+    ]
+    if sys.platform != "darwin":
+        cmd.append("--windowed") # macOS .app bundles are incompatible with onefile
+        
+    cmd.extend([
         "--name", "MetroidDreadPatcher",
         "--paths", "src",  # Tell PyInstaller to look in the src directory
         "--collect-data", "mercury_engine_data_structures",
@@ -43,7 +47,7 @@ def build():
         "--collect-submodules", "open_dread_rando_exlaunch",
         "--add-data", add_data,
         str(entry_point)
-    ]
+    ])
     
     print(f"Running command: {' '.join(cmd)}")
     try:

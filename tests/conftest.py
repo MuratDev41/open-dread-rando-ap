@@ -1,5 +1,6 @@
 import json
 import os
+import typing
 from pathlib import Path
 
 import lupa
@@ -10,7 +11,7 @@ from open_dread_rando.patcher_editor import PatcherEditor
 _FAIL_INSTEAD_OF_SKIP = True
 
 
-def get_env_or_skip(env_name, override_fail: bool | None = None):
+def get_env_or_skip(env_name, override_fail: typing.Optional[bool] = None):
     if override_fail is None:
         fail_or_skip = _FAIL_INSTEAD_OF_SKIP
     else:
@@ -30,7 +31,7 @@ class TestFilesDir:
     def joinpath(self, *paths) -> Path:
         return self.root.joinpath(*paths)
 
-    def read_json(self, *paths) -> dict | list:
+    def read_json(self, *paths) -> typing.Union[dict, list]:
         with self.joinpath(*paths).open() as f:
             return json.load(f)
 
@@ -63,13 +64,8 @@ def patcher_editor(dread_path):
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--skip-if-missing",
-        action="store_false",
-        dest="fail_if_missing",
-        default=True,
-        help="Skip tests instead of missing, in case any asset is missing",
-    )
+    parser.addoption('--skip-if-missing', action='store_false', dest="fail_if_missing",
+                     default=True, help="Skip tests instead of missing, in case any asset is missing")
 
 
 def pytest_configure(config: pytest.Config):

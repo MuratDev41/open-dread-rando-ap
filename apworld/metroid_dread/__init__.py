@@ -6,6 +6,7 @@ from .Rules import set_rules
 from worlds.AutoWorld import World, WebWorld
 import os
 import json
+import uuid
 
 
 class MetroidDreadWeb(WebWorld):
@@ -96,15 +97,78 @@ class MetroidDreadWorld(World):
             "mod_compatibility": "ryujinx",
             "mod_category": "romfs",
             "enable_remote_lua": True,
+            "starting_location": {
+                "scenario": "s010_cave",
+                "actor": "StartPoint0"
+            },
+            "starting_items": {},
+            "starting_text": [[]],
+            "energy_per_tank": 100,
+            "immediate_energy_parts": True,
+            "layout_uuid": str(uuid.uuid5(uuid.NAMESPACE_DNS, f"AP_{self.multiworld.seed_name}")),
+            "has_flash_upgrades": False,
+            "has_speed_upgrades": False,
+            "hints": [],
+            "text_patches": {},
+            "spoiler_log": {},
+            "elevators": [],
+            "door_patches": [],
+            "tile_group_patches": [],
+            "new_spawn_points": [],
+            "mass_delete_actors": {
+                "to_remove": []
+            },
+            "actor_patches": {},
+            "objective": {
+                "required_artifacts": 0,
+                "hints": []
+            },
+            "game_patches": {
+                "raven_beak_damage_table_handling": "consistent_low",
+                "remove_grapple_blocks_hanubia_shortcut": True,
+                "remove_grapple_block_path_to_itorash": True,
+                "default_x_released": False,
+                "enable_experiment_boss": True,
+                "warp_to_start": True,
+                "nerf_power_bombs": False,
+                "remove_water_platform_water": True,
+                "remove_early_cloak_water": "right_only",
+                "remove_arbitrary_enky": "unmodified"
+            },
+            "constant_environment_damage": {
+                "heat": None,
+                "cold": None,
+                "lava": None
+            },
+            "cosmetic_patches": {
+                "config": {},
+                "lua": {
+                    "custom_init": {
+                        "show_dna_in_hud": False,
+                        "enable_death_counter": False,
+                        "enable_room_name_display": "NEVER"
+                    },
+                    "camera_names_dict": {}
+                },
+                "shield_versions": {
+                    "ice_missile": "DEFAULT",
+                    "diffusion_beam": "DEFAULT",
+                    "storm_missile": "DEFAULT",
+                    "bomb": "DEFAULT",
+                    "cross_bomb": "DEFAULT",
+                    "power_bomb": "DEFAULT",
+                    "closed": "DEFAULT"
+                }
+            },
             "pickups": []
         }
 
         # Map Archipelago Items to Patcher internal IDs (strings)
         item_name_to_id = {
             "Morph Ball": "ITEM_MORPH_BALL",
-            "Bomb": "ITEM_BOMB",
-            "Cross Bomb": "ITEM_CROSS_BOMB",
-            "Power Bomb": "ITEM_POWER_BOMB",
+            "Bomb": "ITEM_WEAPON_BOMB",
+            "Cross Bomb": "ITEM_WEAPON_LINE_BOMB",
+            "Power Bomb": "ITEM_WEAPON_POWER_BOMB",
             "Charge Beam": "ITEM_WEAPON_CHARGE_BEAM",
             "Wide Beam": "ITEM_WEAPON_WIDE_BEAM",
             "Plasma Beam": "ITEM_WEAPON_PLASMA_BEAM",
@@ -114,7 +178,7 @@ class MetroidDreadWorld(World):
             "Missile Launcher": "ITEM_WEAPON_MISSILE_LAUNCHER",
             "Super Missile": "ITEM_WEAPON_SUPER_MISSILE",
             "Ice Missile": "ITEM_WEAPON_ICE_MISSILE",
-            "Storm Missile": "ITEM_WEAPON_STORM_MISSILE",
+            "Storm Missile": "ITEM_MULTILOCKON",
             "Phantom Cloak": "ITEM_OPTIC_CAMOUFLAGE",
             "Flash Shift": "ITEM_GHOST_AURA",
             "Pulse Radar": "ITEM_SONAR",
@@ -147,11 +211,36 @@ class MetroidDreadWorld(World):
 
             model = item_model_map.get(item.name, ["itemsphere"])
             
+            ptype = "actor"
+            actordef = None
+            if list(filter(loc_data.name.endswith, ["Hanubia EMMI", "Artaria EMMI", "Ferenia EMMI", "Cataris EMMI", "Ghavoran EMMI", "Dairon EMMI"])):
+                ptype = "emmi"
+                actordef = {
+                    "Hanubia EMMI": "actors/characters/emmyshipyard/charclasses/emmyshipyard.bmsad",
+                    "Artaria EMMI": "actors/characters/emmycave/charclasses/emmycave.bmsad",
+                    "Ferenia EMMI": "actors/characters/emmysanc/charclasses/emmysanc.bmsad",
+                    "Cataris EMMI": "actors/characters/emmymagma/charclasses/emmymagma.bmsad",
+                    "Ghavoran EMMI": "actors/characters/emmyforest/charclasses/emmyforest.bmsad",
+                    "Dairon EMMI": "actors/characters/emmylab/charclasses/emmylab.bmsad"
+                }[loc_data.name.split(" - ")[-1]]
+            elif loc_data.name in ["Ghavoran - Escue", "Ghavoran - Golzuna"]:
+                ptype = "corex"
+                actordef = {
+                    "Ghavoran - Escue": "actors/characters/core_x_superquetzoa/charclasses/core_x_superquetzoa.bmsad",
+                    "Ghavoran - Golzuna": "actors/characters/core_x/charclasses/core_x.bmsad"
+                }[loc_data.name]
+            elif loc_data.name == "Artaria - Scorpius":
+                ptype = "corpius"
+                actordef = "actors/characters/scorpius/charclasses/scorpius.bmsad"
+            elif loc_data.name in ["Cataris - Kraid", "Burenia - Drogyga", "Cataris - Experiment No. Z-57"]:
+                ptype = "cutscene"
+
             pickup = {
-                "pickup_type": loc_data.pickup_type if hasattr(loc_data, "pickup_type") else "actor",
+                "pickup_type": ptype,
                 "caption": f"{item.name} from {self.multiworld.get_player_name(item.player)}" if is_remote else f"{item.name}",
                 "resources": [[{"item_id": patcher_item_name, "quantity": 1}]],
                 "model": model,
+                "map_icon": {"icon_id": model[0]},
                 "is_remote": is_remote
             }
             
@@ -165,7 +254,8 @@ class MetroidDreadWorld(World):
                     "scenario": loc_data.scenario,
                     "function": loc_data.actor
                 }
-                pickup["pickup_actordef"] = loc_data.actordef # I'll need to check if I added this to Locations.py
+                if actordef is not None:
+                    pickup["pickup_actordef"] = actordef
                 pickup["pickup_string_key"] = f"STR_ID_{location.name.replace(' ', '_')}"
 
             patch_data["pickups"].append(pickup)
